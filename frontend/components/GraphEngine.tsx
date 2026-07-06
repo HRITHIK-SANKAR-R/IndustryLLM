@@ -26,7 +26,7 @@ const ForceGraph3D = dynamic(() => import("react-force-graph-3d"), {
 });
 
 export function GraphEngine() {
-  const { graph, activeNodeId, setActiveNode } = useStore();
+  const { graph, activeNodeId, setActiveNode, appStatus } = useStore();
   const fgRef = useRef<ForceGraphHandle>(undefined);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ w: 600, h: 300 });
@@ -79,7 +79,9 @@ export function GraphEngine() {
         </span>
       </div>
       <div ref={wrapRef} className="absolute inset-0 top-9">
-        {data.nodes.length === 0 ? (
+        {appStatus === "PROCESSING" ? (
+          <ScanningOverlay />
+        ) : data.nodes.length === 0 ? (
           <div className="h-full grid place-items-center text-xs font-mono text-muted">
             Empty ontology — ingest to populate the graph.
           </div>
@@ -106,5 +108,37 @@ export function GraphEngine() {
         )}
       </div>
     </section>
+  );
+}
+
+// Wireframe "scanning" placeholder shown over the 3D pane while the pipeline
+// is building the ontology (uiux.md §8.2: "wireframe scanning animation").
+function ScanningOverlay() {
+  return (
+    <div className="relative h-full w-full overflow-hidden grid place-items-center">
+      <div
+        className="absolute inset-0 opacity-40"
+        style={{
+          backgroundImage:
+            "linear-gradient(#1f2937 1px, transparent 1px), linear-gradient(90deg, #1f2937 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
+        }}
+      />
+      <span className="scanline absolute inset-x-0 h-12 bg-accent/10" />
+      <div className="relative z-10 flex flex-col items-center gap-3">
+        <div className="flex gap-2">
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="pulse-dot h-2 w-2 rounded-full bg-accent"
+              style={{ animationDelay: `${i * 0.2}s` }}
+            />
+          ))}
+        </div>
+        <p className="text-xs font-mono text-muted">
+          Constructing knowledge graph…
+        </p>
+      </div>
+    </div>
   );
 }
