@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 
 	"omnigraph/internal/ai"
+	"omnigraph/internal/graphdb"
 	"omnigraph/internal/pipeline"
 	"omnigraph/internal/router"
 	"omnigraph/internal/store"
@@ -26,10 +28,20 @@ func main() {
 	wk := worker.New(worker.BaseURLFromEnv())
 	aiClient := ai.New(groqKey, nvidiaKey)
 
+	neo4jURI := getenv("NEO4J_URI", "bolt://localhost:7687")
+	neo4jClient, err := graphdb.New(neo4jURI, os.Getenv("NEO4J_USER"), os.Getenv("NEO4J_PASSWORD"))
+	if err != nil {
+		fmt.Printf("Neo4j unavailable at %s (running in-memory-only): %v\n", neo4jURI, err)
+		neo4jClient = nil
+	} else if err := neo4jClient.EnsureConstraints(context.Background()); err != nil {
+		fmt.Printf("Neo4j constraint setup failed (non-fatal): %v\n", err)
+	}
+
 	pl := &pipeline.Pipeline{
 		Store:   st,
 		Worker:  wk,
 		AI:      aiClient,
+		Neo4j:   neo4jClient,
 		MockDir: mockDir,
 		HasKeys: hasKeys,
 	}

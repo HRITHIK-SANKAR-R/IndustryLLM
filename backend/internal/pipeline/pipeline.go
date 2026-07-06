@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"omnigraph/internal/ai"
+	"omnigraph/internal/graphdb"
 	"omnigraph/internal/models"
 	"omnigraph/internal/store"
 	"omnigraph/internal/worker"
@@ -22,6 +24,7 @@ type Pipeline struct {
 	Store    *store.Store
 	Worker   *worker.Client
 	AI       *ai.Client
+	Neo4j    *graphdb.Client // optional; nil means "no Neo4j configured/reachable"
 	MockDir  string
 	HasKeys  bool // true if both API keys present; else force mock
 }
@@ -127,6 +130,20 @@ func (p *Pipeline) commit(res models.ExtractionResult, log LogFn) {
 	p.Store.Ingest(res)
 	n, e := p.Store.Counts()
 	log("GRAPH", fmt.Sprintf("Injected %d nodes and %d edges.", n, e))
+
+	// Best-effort mirror into Neo4j. The in-memory store above is the source
+	// of truth for every read the frontend makes, so a slow/unreachable
+	// Neo4j never breaks the live demo.
+	if p.Neo4j != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := p.Neo4j.Ingest(ctx, res); err != nil {
+			log("NEO4J", fmt.Sprintf("mirror write failed (non-fatal): %v", err))
+		} else {
+			log("NEO4J", "Graph mirrored to Neo4j.")
+		}
+	}
+
 	log("SYS", "Graph generation complete.")
 }
 
