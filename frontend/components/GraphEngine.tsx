@@ -26,7 +26,13 @@ const ForceGraph3D = dynamic(() => import("react-force-graph-3d"), {
 });
 
 export function GraphEngine() {
-  const { graph, activeNodeId, setActiveNode, appStatus } = useStore();
+  // Individual selectors (not a whole-store destructure) so this component
+  // only re-renders when one of these four fields actually changes — not on
+  // every toast/log/context update elsewhere in the app.
+  const graph = useStore((s) => s.graph);
+  const activeNodeId = useStore((s) => s.activeNodeId);
+  const setActiveNode = useStore((s) => s.setActiveNode);
+  const appStatus = useStore((s) => s.appStatus);
   const fgRef = useRef<ForceGraphHandle>(undefined);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ w: 600, h: 300 });

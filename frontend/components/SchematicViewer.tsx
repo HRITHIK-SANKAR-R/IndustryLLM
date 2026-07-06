@@ -8,7 +8,11 @@ import { COLORS } from "@/lib/colors";
 // drawn in the schematic's native pixel space via a viewBox so they stay pinned
 // under responsive scaling.
 export function SchematicViewer() {
-  const { spatial, activeNodeId, setActiveNode } = useStore();
+  // Per-field selectors avoid re-rendering on unrelated store writes (logs,
+  // toasts, context, ...).
+  const spatial = useStore((s) => s.spatial);
+  const activeNodeId = useStore((s) => s.activeNodeId);
+  const setActiveNode = useStore((s) => s.setActiveNode);
   const [hover, setHover] = useState<string | null>(null);
   const [showBoxes, setShowBoxes] = useState(true);
 

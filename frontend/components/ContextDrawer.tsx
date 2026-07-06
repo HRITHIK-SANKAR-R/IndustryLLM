@@ -5,7 +5,9 @@ import { categoryColor, COLORS } from "@/lib/colors";
 
 // ContextDrawer slides in from the right when a node is selected in any pane.
 export function ContextDrawer() {
-  const { activeNodeId, context, setActiveNode } = useStore();
+  const activeNodeId = useStore((s) => s.activeNodeId);
+  const context = useStore((s) => s.context);
+  const setActiveNode = useStore((s) => s.setActiveNode);
   const open = activeNodeId != null;
 
   if (!open) return null;

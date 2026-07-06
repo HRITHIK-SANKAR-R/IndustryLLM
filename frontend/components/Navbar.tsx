@@ -3,7 +3,11 @@
 import { useStore } from "@/lib/store";
 
 export function Navbar() {
-  const { appStatus, workerOnline, mockMode, toggleMock, graph } = useStore();
+  const appStatus = useStore((s) => s.appStatus);
+  const workerOnline = useStore((s) => s.workerOnline);
+  const mockMode = useStore((s) => s.mockMode);
+  const toggleMock = useStore((s) => s.toggleMock);
+  const graph = useStore((s) => s.graph);
 
   const online = appStatus !== "ERROR";
   const dotColor = appStatus === "ERROR" ? "bg-danger" : "bg-success";
@@ -57,7 +61,8 @@ export function Navbar() {
 }
 
 function SearchBox() {
-  const { graph, setActiveNode } = useStore();
+  const graph = useStore((s) => s.graph);
+  const setActiveNode = useStore((s) => s.setActiveNode);
   return (
     <>
       <input

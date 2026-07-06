@@ -5,7 +5,8 @@ import { useStore } from "@/lib/store";
 import { useOmniGraph } from "@/lib/useOmniGraph";
 
 export function IngestPanel() {
-  const { appStatus, mockMode } = useStore();
+  const appStatus = useStore((s) => s.appStatus);
+  const mockMode = useStore((s) => s.mockMode);
   const { runIngest } = useOmniGraph();
   const [manual, setManual] = useState<File | null>(null);
   const [schematic, setSchematic] = useState<File | null>(null);
@@ -174,7 +175,8 @@ function tagColor(tag: string): string {
 }
 
 function Metrics() {
-  const { graph, appStatus } = useStore();
+  const graph = useStore((s) => s.graph);
+  const appStatus = useStore((s) => s.appStatus);
   const equip = graph.nodes.filter((n) => n.group === "Equipment").length;
   const rules = graph.nodes.filter((n) => n.group === "Rule").length;
   return (
