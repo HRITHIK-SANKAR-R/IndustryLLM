@@ -27,10 +27,12 @@ func New(baseURL string) *Client {
 
 // ParseResult is what the Python worker returns after parsing the uploads.
 type ParseResult struct {
-	Chunks     []string `json:"chunks"`      // semantic text chunks from the PDF
-	ImageB64   string   `json:"image_b64"`   // compressed schematic, base64
-	ImageName  string   `json:"image_name"`
-	PageCount  int      `json:"page_count"`
+	Chunks      []string `json:"chunks"`       // semantic text chunks from the PDF
+	ImageB64    string   `json:"image_b64"`    // compressed schematic, base64
+	ImageName   string   `json:"image_name"`
+	ImageWidth  int      `json:"image_width"`  // pixel space the vision model sees
+	ImageHeight int      `json:"image_height"`
+	PageCount   int      `json:"page_count"`
 }
 
 // Parse posts the raw PDF + image bytes to the worker and returns chunks + b64 image.

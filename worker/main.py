@@ -78,15 +78,20 @@ def chunk_text(text: str) -> List[str]:
     return chunks
 
 
-def compress_image(img_bytes: bytes) -> str:
-    """Downscale + JPEG-compress the schematic, return base64 (no data URI prefix)."""
+def compress_image(img_bytes: bytes) -> tuple[str, int, int]:
+    """Downscale + JPEG-compress the schematic.
+
+    Returns (base64 without data URI prefix, width, height) of the compressed
+    image — the exact pixel space the vision model sees, so the router can
+    denormalize relative bounding boxes.
+    """
     if Image is None or not img_bytes:
-        return ""
+        return "", 0, 0
     img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
     img.thumbnail((MAX_IMAGE_DIM, MAX_IMAGE_DIM))
     out = io.BytesIO()
     img.save(out, format="JPEG", quality=JPEG_QUALITY)
-    return base64.b64encode(out.getvalue()).decode("ascii")
+    return base64.b64encode(out.getvalue()).decode("ascii"), img.width, img.height
 
 
 @app.post("/parse")
@@ -100,13 +105,15 @@ async def parse(
 
     text, page_count = extract_text(pdf_bytes)
     chunks = chunk_text(text)
-    image_b64 = compress_image(img_bytes)
+    image_b64, image_width, image_height = compress_image(img_bytes)
 
     return JSONResponse(
         {
             "chunks": chunks,
             "image_b64": image_b64,
             "image_name": img_name,
+            "image_width": image_width,
+            "image_height": image_height,
             "page_count": page_count,
         }
     )

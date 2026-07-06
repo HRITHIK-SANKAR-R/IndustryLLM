@@ -158,13 +158,62 @@ func (c *Client) ExtractText(chunk string) ([]models.Entity, error) {
 	return out.Entities, nil
 }
 
-// ExtractSpatial sends the base64 schematic to NVIDIA NIM and returns bounding boxes.
-func (c *Client) ExtractSpatial(imageB64 string, tags []string) ([]models.SpatialHit, error) {
+// rawSpatialHit tolerates float coordinates: vision models often return
+// normalized 0-1 boxes despite being asked for pixels.
+type rawSpatialHit struct {
+	EquipmentTag string  `json:"equipment_tag"`
+	Confidence   float64 `json:"confidence"`
+	Box          struct {
+		XMin float64 `json:"x_min"`
+		YMin float64 `json:"y_min"`
+		XMax float64 `json:"x_max"`
+		YMax float64 `json:"y_max"`
+	} `json:"bounding_box"`
+}
+
+// denormalizeSpatial converts raw hits to pixel-space SpatialHits. If every
+// coordinate is within [0,1] the box is treated as normalized and scaled by
+// the image dimensions; otherwise values are rounded as-is.
+func denormalizeSpatial(raw []rawSpatialHit, imgW, imgH int) []models.SpatialHit {
+	normalized := len(raw) > 0 && imgW > 0 && imgH > 0
+	for _, r := range raw {
+		if r.Box.XMax > 1 || r.Box.YMax > 1 || r.Box.XMin > 1 || r.Box.YMin > 1 {
+			normalized = false
+			break
+		}
+	}
+	hits := make([]models.SpatialHit, 0, len(raw))
+	for _, r := range raw {
+		b := r.Box
+		if normalized {
+			b.XMin *= float64(imgW)
+			b.XMax *= float64(imgW)
+			b.YMin *= float64(imgH)
+			b.YMax *= float64(imgH)
+		}
+		hits = append(hits, models.SpatialHit{
+			EquipmentTag: r.EquipmentTag,
+			Confidence:   r.Confidence,
+			Box: models.BoundingBox{
+				XMin: int(b.XMin + 0.5),
+				YMin: int(b.YMin + 0.5),
+				XMax: int(b.XMax + 0.5),
+				YMax: int(b.YMax + 0.5),
+			},
+		})
+	}
+	return hits
+}
+
+// ExtractSpatial sends the base64 schematic to NVIDIA NIM and returns bounding
+// boxes in the pixel space of the (compressed) image, imgW x imgH.
+func (c *Client) ExtractSpatial(imageB64 string, imgW, imgH int, tags []string) ([]models.SpatialHit, error) {
 	prompt := fmt.Sprintf(`You are a spatial bounding box extractor for engineering diagrams.
+The image is %d pixels wide and %d pixels tall.
 Locate these equipment tags in the image: %s.
-Return ONLY valid JSON matching:
+Return pixel coordinates. Return ONLY valid JSON matching:
 {"spatial":[{"equipment_tag":"","confidence":0.0,"bounding_box":{"x_min":0,"y_min":0,"x_max":0,"y_max":0}}]}`,
-		strings.Join(tags, ", "))
+		imgW, imgH, strings.Join(tags, ", "))
 
 	content, err := c.post(nvidiaURL, c.nvidiaKey, chatReq{
 		Model:       nvidiaModel,
@@ -184,10 +233,10 @@ Return ONLY valid JSON matching:
 		return nil, err
 	}
 	var out struct {
-		Spatial []models.SpatialHit `json:"spatial"`
+		Spatial []rawSpatialHit `json:"spatial"`
 	}
 	if err := json.Unmarshal([]byte(sanitizeLLMJSON(content)), &out); err != nil {
 		return nil, fmt.Errorf("nvidia bad json: %w", err)
 	}
-	return out.Spatial, nil
+	return denormalizeSpatial(out.Spatial, imgW, imgH), nil
 }

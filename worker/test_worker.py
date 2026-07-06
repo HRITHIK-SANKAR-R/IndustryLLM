@@ -51,7 +51,7 @@ def test_compress_image_downscales_and_encodes():
     big = Image.new("RGB", (4000, 3000), (10, 20, 30))
     buf = io.BytesIO()
     big.save(buf, format="PNG")
-    b64 = compress_image(buf.getvalue())
+    b64, w, h = compress_image(buf.getvalue())
     assert isinstance(b64, str)
     assert len(b64) > 0
     # decode back and confirm it fits the max dimension
@@ -59,7 +59,8 @@ def test_compress_image_downscales_and_encodes():
 
     decoded = Image.open(io.BytesIO(base64.b64decode(b64)))
     assert max(decoded.size) <= 2048
+    assert (w, h) == decoded.size
 
 
 def test_compress_image_empty():
-    assert compress_image(b"") == ""
+    assert compress_image(b"") == ("", 0, 0)

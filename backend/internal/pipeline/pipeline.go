@@ -99,7 +99,7 @@ func (p *Pipeline) runLive(pdf []byte, pdfName string, img []byte, imgName strin
 			return
 		}
 		// Vision needs candidate tags; on first pass we ask for everything.
-		hits, err := p.AI.ExtractSpatial(parsed.ImageB64, []string{"all equipment tags"})
+		hits, err := p.AI.ExtractSpatial(parsed.ImageB64, parsed.ImageWidth, parsed.ImageHeight, []string{"all equipment tags"})
 		if err != nil {
 			log("NVIDIA", fmt.Sprintf("vision failed: %v", err))
 			return
