@@ -47,7 +47,7 @@ type GraphNode struct {
 	ID    string `json:"id"`
 	Group string `json:"group"` // Equipment | Rule | Coordinate
 	Label string `json:"label"`
-	Val   int    `json:"val"`   // degree centrality → node size
+	Val   int    `json:"val"` // degree centrality → node size
 }
 
 // GraphLink is one edge for the 3D visualizer.

@@ -21,8 +21,8 @@ type Router struct {
 	Worker   *worker.Client
 	MockOnly bool // true when no API keys → always report mock
 
-	mu   sync.Mutex
-	logs []logLine // last job's log lines, replayed to SSE clients
+	mu   sync.RWMutex // logs are written once per ingest but read on every /logs poll
+	logs []logLine    // last job's log lines, replayed to SSE clients
 }
 
 type logLine struct {
@@ -114,10 +114,10 @@ func (rt *Router) nodeContext(w http.ResponseWriter, r *http.Request) {
 
 // logsHandler returns the last job's captured log lines (simple polling model).
 func (rt *Router) logsHandler(w http.ResponseWriter, r *http.Request) {
-	rt.mu.Lock()
+	rt.mu.RLock()
 	out := make([]logLine, len(rt.logs))
 	copy(out, rt.logs)
-	rt.mu.Unlock()
+	rt.mu.RUnlock()
 	writeJSON(w, http.StatusOK, map[string]any{"logs": out})
 }
 

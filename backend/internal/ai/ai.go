@@ -29,12 +29,20 @@ type Client struct {
 	sem       chan struct{}
 }
 
+// maxConcurrentCalls bounds outbound Groq/NVIDIA requests in flight.
+const maxConcurrentCalls = 5
+
 func New(groqKey, nvidiaKey string) *Client {
+	// Default transport pools only 2 idle conns/host; with maxConcurrentCalls
+	// goroutines hitting the same host concurrently that forces a fresh
+	// TLS handshake per request past the 2nd. Raise the pool to match.
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConnsPerHost = maxConcurrentCalls
 	return &Client{
 		groqKey:   groqKey,
 		nvidiaKey: nvidiaKey,
-		http:      &http.Client{Timeout: 90 * time.Second},
-		sem:       make(chan struct{}, 5), // max 5 concurrent outbound calls
+		http:      &http.Client{Timeout: 90 * time.Second, Transport: transport},
+		sem:       make(chan struct{}, maxConcurrentCalls),
 	}
 }
 

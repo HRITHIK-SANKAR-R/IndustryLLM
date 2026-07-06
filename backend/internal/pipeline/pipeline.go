@@ -21,12 +21,12 @@ type LogFn func(tag, msg string)
 
 // Pipeline orchestrates: Python worker -> Groq (text) + NVIDIA (vision) -> store.
 type Pipeline struct {
-	Store    *store.Store
-	Worker   *worker.Client
-	AI       *ai.Client
-	Neo4j    *graphdb.Client // optional; nil means "no Neo4j configured/reachable"
-	MockDir  string
-	HasKeys  bool // true if both API keys present; else force mock
+	Store   *store.Store
+	Worker  *worker.Client
+	AI      *ai.Client
+	Neo4j   *graphdb.Client // optional; nil means "no Neo4j configured/reachable"
+	MockDir string
+	HasKeys bool // true if both API keys present; else force mock
 }
 
 // Run executes ingestion. If mock is true (or keys missing) it serves the

@@ -14,8 +14,8 @@ import (
 type Store struct {
 	mu sync.RWMutex
 
-	equipment map[string]models.Entity      // tag_id -> entity
-	spatial   map[string]models.SpatialHit  // tag_id -> bounding box
+	equipment map[string]models.Entity     // tag_id -> entity
+	spatial   map[string]models.SpatialHit // tag_id -> bounding box
 	// ruleKey -> rule id, so identical rules dedupe into one node
 	ruleIDs map[string]string
 	rules   map[string]models.Rule // rule id -> rule
