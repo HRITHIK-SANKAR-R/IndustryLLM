@@ -8,12 +8,14 @@ bytes; it returns semantic text chunks (PyMuPDF) and a compressed base64 image
 Run:  uvicorn main:app --host 127.0.0.1 --port 8000
 """
 
+import asyncio
 import base64
 import io
 from typing import List
 
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 # Optional heavy deps — import lazily so /health works even if a wheel is missing.
 try:
@@ -103,9 +105,15 @@ async def parse(
     img_bytes = await schematic.read() if schematic is not None else b""
     img_name = schematic.filename if schematic is not None else ""
 
-    text, page_count = extract_text(pdf_bytes)
+    # PDF extraction and image compression are independent CPU-bound work;
+    # run both off the event loop (in a thread pool) and concurrently so a
+    # large manual doesn't block this worker from serving other requests
+    # (including its own /health) and the two don't serialize behind each other.
+    (text, page_count), (image_b64, image_width, image_height) = await asyncio.gather(
+        run_in_threadpool(extract_text, pdf_bytes),
+        run_in_threadpool(compress_image, img_bytes),
+    )
     chunks = chunk_text(text)
-    image_b64, image_width, image_height = compress_image(img_bytes)
 
     return JSONResponse(
         {
