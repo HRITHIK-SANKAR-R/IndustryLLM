@@ -1,6 +1,10 @@
 # local progress tracker (not committed)
 completionuntilnow.md
 
+# secrets — never commit
+.env
+.env.local
+
 # logs / scratch
 *.log
 prd.md
