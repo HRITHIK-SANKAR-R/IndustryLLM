@@ -49,6 +49,27 @@ func sanitizeLLMJSON(raw string) string {
 	return raw[start : end+1]
 }
 
+// unmarshalLLMJSON parses JSON out of an LLM reply. The outermost-braces slice
+// from sanitizeLLMJSON breaks when the model wraps several {...} fragments in
+// prose, so on failure it retries with the last valid JSON object — models
+// that ramble usually finish with the actual answer.
+func unmarshalLLMJSON(content string, v interface{}) error {
+	firstErr := json.Unmarshal([]byte(sanitizeLLMJSON(content)), v)
+	if firstErr == nil {
+		return nil
+	}
+	end := strings.LastIndex(content, "}")
+	if end == -1 {
+		return firstErr
+	}
+	for start := strings.LastIndex(content[:end+1], "{"); start != -1; start = strings.LastIndex(content[:start], "{") {
+		if cand := content[start : end+1]; json.Valid([]byte(cand)) {
+			return json.Unmarshal([]byte(cand), v)
+		}
+	}
+	return firstErr
+}
+
 // openAIChat is the shared request/response shape for both providers.
 type chatReq struct {
 	Model          string      `json:"model"`
@@ -152,7 +173,7 @@ func (c *Client) ExtractText(chunk string) ([]models.Entity, error) {
 	var out struct {
 		Entities []models.Entity `json:"entities"`
 	}
-	if err := json.Unmarshal([]byte(sanitizeLLMJSON(content)), &out); err != nil {
+	if err := unmarshalLLMJSON(content, &out); err != nil {
 		return nil, fmt.Errorf("groq bad json: %w", err)
 	}
 	return out.Entities, nil
@@ -205,8 +226,105 @@ func denormalizeSpatial(raw []rawSpatialHit, imgW, imgH int) []models.SpatialHit
 	return hits
 }
 
+// degenerateSpatial reports whether every returned box is unusable (zero
+// area), which happens when the vision model echoes the JSON template instead
+// of grounding real coordinates.
+func degenerateSpatial(hits []models.SpatialHit) bool {
+	for _, h := range hits {
+		if h.Box.XMax > h.Box.XMin && h.Box.YMax > h.Box.YMin {
+			return false
+		}
+	}
+	return true
+}
+
+// regionBox converts a word-region ("bottom-left", "center", ...) into a box
+// covering the middle of that cell in a 3x3 grid over the image.
+func regionBox(region string, imgW, imgH int) (models.BoundingBox, bool) {
+	col, row := -1, -1
+	switch {
+	case strings.Contains(region, "left"):
+		col = 0
+	case strings.Contains(region, "right"):
+		col = 2
+	case strings.Contains(region, "center") || strings.Contains(region, "middle"):
+		col = 1
+	}
+	switch {
+	case strings.Contains(region, "top"):
+		row = 0
+	case strings.Contains(region, "bottom"):
+		row = 2
+	case strings.Contains(region, "middle") || region == "center":
+		row = 1
+	}
+	if col == -1 || row == -1 {
+		return models.BoundingBox{}, false
+	}
+	cellW, cellH := float64(imgW)/3, float64(imgH)/3
+	// Central 50% of the cell: honest about coarse precision without
+	// swallowing a third of the schematic.
+	return models.BoundingBox{
+		XMin: int(float64(col)*cellW + cellW*0.25),
+		YMin: int(float64(row)*cellH + cellH*0.25),
+		XMax: int(float64(col)*cellW + cellW*0.75),
+		YMax: int(float64(row)*cellH + cellH*0.75),
+	}, true
+}
+
+// extractSpatialByRegion is the fallback localization strategy: the 11B vision
+// model reliably reads tags and names coarse regions, but echoes any numeric
+// example given in the prompt. So we ask for word-regions and synthesize boxes.
+func (c *Client) extractSpatialByRegion(imageB64 string, imgW, imgH int, tags []string) ([]models.SpatialHit, error) {
+	prompt := fmt.Sprintf(`Look at this engineering diagram (P&ID). Find these equipment tag labels: %s.
+For each tag, give the region where it appears, choosing from: top-left, top-center, top-right, middle-left, center, middle-right, bottom-left, bottom-center, bottom-right.
+Answer ONLY JSON: {"labels":[{"tag":"...","region":"..."}]}`, strings.Join(tags, ", "))
+
+	content, err := c.post(nvidiaURL, c.nvidiaKey, chatReq{
+		Model:       nvidiaModel,
+		Temperature: 0.1,
+		MaxTokens:   1024,
+		Messages: []chatMsg{
+			{Role: "user", Content: []interface{}{
+				map[string]string{"type": "text", "text": prompt},
+				map[string]interface{}{
+					"type":      "image_url",
+					"image_url": map[string]string{"url": "data:image/jpeg;base64," + imageB64},
+				},
+			}},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	var out struct {
+		Labels []struct {
+			Tag    string `json:"tag"`
+			Region string `json:"region"`
+		} `json:"labels"`
+	}
+	if err := unmarshalLLMJSON(content, &out); err != nil {
+		return nil, fmt.Errorf("nvidia bad json (region): %w", err)
+	}
+	hits := make([]models.SpatialHit, 0, len(out.Labels))
+	for _, l := range out.Labels {
+		box, ok := regionBox(strings.ToLower(l.Region), imgW, imgH)
+		if !ok || l.Tag == "" || l.Tag == "..." {
+			continue
+		}
+		hits = append(hits, models.SpatialHit{
+			EquipmentTag: l.Tag,
+			Confidence:   0.5, // coarse region estimate
+			Box:          box,
+		})
+	}
+	return hits, nil
+}
+
 // ExtractSpatial sends the base64 schematic to NVIDIA NIM and returns bounding
-// boxes in the pixel space of the (compressed) image, imgW x imgH.
+// boxes in the pixel space of the (compressed) image, imgW x imgH. If the
+// model fails to ground pixel coordinates it retries with the coarser
+// word-region strategy.
 func (c *Client) ExtractSpatial(imageB64 string, imgW, imgH int, tags []string) ([]models.SpatialHit, error) {
 	prompt := fmt.Sprintf(`You are a spatial bounding box extractor for engineering diagrams.
 The image is %d pixels wide and %d pixels tall.
@@ -235,8 +353,13 @@ Return pixel coordinates. Return ONLY valid JSON matching:
 	var out struct {
 		Spatial []rawSpatialHit `json:"spatial"`
 	}
-	if err := json.Unmarshal([]byte(sanitizeLLMJSON(content)), &out); err != nil {
-		return nil, fmt.Errorf("nvidia bad json: %w", err)
+	var hits []models.SpatialHit
+	if err := unmarshalLLMJSON(content, &out); err == nil {
+		hits = denormalizeSpatial(out.Spatial, imgW, imgH)
 	}
-	return denormalizeSpatial(out.Spatial, imgW, imgH), nil
+	// Unparseable or template-echoed output -> coarse word-region strategy.
+	if degenerateSpatial(hits) && imgW > 0 && imgH > 0 {
+		return c.extractSpatialByRegion(imageB64, imgW, imgH, tags)
+	}
+	return hits, nil
 }

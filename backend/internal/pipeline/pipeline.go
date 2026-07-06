@@ -75,7 +75,7 @@ func (p *Pipeline) runLive(pdf []byte, pdfName string, img []byte, imgName strin
 		spatial  []models.SpatialHit
 	)
 
-	// Branch A: text chunks -> Groq, concurrently.
+	// Stage 1: text chunks -> Groq, concurrently.
 	for i, chunk := range parsed.Chunks {
 		wg.Add(1)
 		go func(i int, chunk string) {
@@ -90,29 +90,25 @@ func (p *Pipeline) runLive(pdf []byte, pdfName string, img []byte, imgName strin
 			mu.Unlock()
 		}(i, chunk)
 	}
-
-	// Branch B: schematic -> NVIDIA (runs in parallel with the Groq fan-out).
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if parsed.ImageB64 == "" {
-			return
-		}
-		// Vision needs candidate tags; on first pass we ask for everything.
-		hits, err := p.AI.ExtractSpatial(parsed.ImageB64, parsed.ImageWidth, parsed.ImageHeight, []string{"all equipment tags"})
-		if err != nil {
-			log("NVIDIA", fmt.Sprintf("vision failed: %v", err))
-			return
-		}
-		mu.Lock()
-		spatial = hits
-		mu.Unlock()
-	}()
-
 	wg.Wait()
 
 	entities = mergeEntities(entities)
 	log("GROQ", fmt.Sprintf("Extracted %d unique entities.", len(entities)))
+
+	// Stage 2: schematic -> NVIDIA. Runs after Groq because the vision model
+	// localizes far better when given the exact tag names to look for.
+	if parsed.ImageB64 != "" && len(entities) > 0 {
+		tags := make([]string, 0, len(entities))
+		for _, e := range entities {
+			tags = append(tags, e.EquipmentTag)
+		}
+		hits, err := p.AI.ExtractSpatial(parsed.ImageB64, parsed.ImageWidth, parsed.ImageHeight, tags)
+		if err != nil {
+			log("NVIDIA", fmt.Sprintf("vision failed: %v", err))
+		} else {
+			spatial = hits
+		}
+	}
 	log("NVIDIA", fmt.Sprintf("Bounding boxes mapped for %d tags.", len(spatial)))
 
 	res := models.ExtractionResult{
