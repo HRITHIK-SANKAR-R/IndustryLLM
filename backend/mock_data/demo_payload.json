@@ -1,0 +1,62 @@
+{
+  "document_type": "Maintenance Manual",
+  "source_image": "plant_schematic.png",
+  "entities": [
+    {
+      "equipment_tag": "V-104",
+      "name": "Gate Valve",
+      "system": "Cooling Water System",
+      "rules": [
+        {
+          "category": "Safety",
+          "description": "Must be locked out and tagged before downstream pipe removal.",
+          "source_paragraph": "Prior to any pipe maintenance on the cooling loop, valve V-104 shall be closed, locked out, and tagged in accordance with the plant LOTO program. Verify zero energy state before proceeding."
+        },
+        {
+          "category": "Maintenance",
+          "description": "Torque bonnet bolts to 45 Nm in a star pattern.",
+          "source_paragraph": "When reassembling V-104, torque the bonnet bolts to 45 Nm following a star/cross pattern in two passes to ensure even seating of the gasket."
+        },
+        {
+          "category": "Compliance",
+          "description": "OSHA 1910.147 Lockout/Tagout applies.",
+          "source_paragraph": "All isolation of V-104 must comply with OSHA Standard 1910.147 (The Control of Hazardous Energy)."
+        }
+      ]
+    },
+    {
+      "equipment_tag": "P-201A",
+      "name": "Centrifugal Pump",
+      "system": "Cooling Water System",
+      "rules": [
+        {
+          "category": "Maintenance",
+          "description": "Lubricate bearings every 400 operating hours.",
+          "source_paragraph": "Pump P-201A bearings require re-lubrication with ISO VG 68 oil every 400 operating hours. Do not over-fill; maintain the oil sight glass at the center mark."
+        },
+        {
+          "category": "Safety",
+          "description": "Confirm suction valve V-104 open before start to avoid dry-run.",
+          "source_paragraph": "Before starting P-201A, confirm suction valve V-104 is fully open. Running the pump dry will destroy the mechanical seal within seconds."
+        },
+        {
+          "category": "Compliance",
+          "description": "OSHA 1910.119 Mechanical Integrity program required.",
+          "source_paragraph": "P-201A is covered equipment under the facility's OSHA 1910.119 Process Safety Management mechanical integrity program."
+        }
+      ]
+    }
+  ],
+  "spatial": [
+    {
+      "equipment_tag": "V-104",
+      "confidence": 0.94,
+      "bounding_box": { "x_min": 240, "y_min": 512, "x_max": 300, "y_max": 560 }
+    },
+    {
+      "equipment_tag": "P-201A",
+      "confidence": 0.91,
+      "bounding_box": { "x_min": 520, "y_min": 300, "x_max": 610, "y_max": 380 }
+    }
+  ]
+}
