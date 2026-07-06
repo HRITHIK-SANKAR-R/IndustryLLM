@@ -24,6 +24,7 @@ export function useOmniGraph() {
     setContext,
     setWorkerOnline,
     toggleMock,
+    pushToast,
   } = useStore();
 
   // Health check on mount.
@@ -60,6 +61,7 @@ export function useOmniGraph() {
   // Run ingestion end-to-end.
   const runIngest = useCallback(
     async (manual: File | null, schematic: File | null) => {
+      const startedAt = Date.now();
       setStatus("PROCESSING");
       setLogs([]);
       try {
@@ -73,13 +75,17 @@ export function useOmniGraph() {
         setGraph(graph);
         setSpatial(spatial);
         setStatus("READY");
+        const secs = ((Date.now() - startedAt) / 1000).toFixed(1);
+        pushToast("success", `Ontology successfully generated in ${secs}s`);
         return { ok: true as const };
       } catch (e) {
         setStatus("ERROR");
-        return { ok: false as const, error: (e as Error).message };
+        const message = (e as Error).message;
+        pushToast("error", `Ingestion failed: ${message}`);
+        return { ok: false as const, error: message };
       }
     },
-    [mockMode, setStatus, setLogs, setGraph, setSpatial]
+    [mockMode, setStatus, setLogs, setGraph, setSpatial, pushToast]
   );
 
   return { runIngest };

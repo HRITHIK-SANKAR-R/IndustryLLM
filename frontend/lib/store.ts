@@ -5,6 +5,7 @@ import type {
   LogLine,
   NodeContext,
   SpatialHit,
+  Toast,
 } from "./types";
 
 // Single global store. The 2D canvas, 3D graph, and drawer all subscribe to
@@ -18,6 +19,7 @@ interface AppState {
   context: NodeContext | null;
   mockMode: boolean;
   workerOnline: boolean;
+  toasts: Toast[];
 
   setStatus: (s: AppStatus) => void;
   // Coordinate nodes arrive as "C-<tag>"; normalize to the equipment tag.
@@ -28,6 +30,8 @@ interface AppState {
   setContext: (c: NodeContext | null) => void;
   toggleMock: () => void;
   setWorkerOnline: (b: boolean) => void;
+  pushToast: (kind: Toast["kind"], message: string) => void;
+  dismissToast: (id: string) => void;
   reset: () => void;
 }
 
@@ -45,6 +49,7 @@ export const useStore = create<AppState>((set) => ({
   context: null,
   mockMode: true, // demo-safe default
   workerOnline: false,
+  toasts: [],
 
   setStatus: (s) => set({ appStatus: s }),
   setActiveNode: (id) => set({ activeNodeId: normalizeTag(id) }),
@@ -54,6 +59,15 @@ export const useStore = create<AppState>((set) => ({
   setContext: (c) => set({ context: c }),
   toggleMock: () => set((st) => ({ mockMode: !st.mockMode })),
   setWorkerOnline: (b) => set({ workerOnline: b }),
+  pushToast: (kind, message) =>
+    set((st) => ({
+      toasts: [
+        ...st.toasts,
+        { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, kind, message },
+      ],
+    })),
+  dismissToast: (id) =>
+    set((st) => ({ toasts: st.toasts.filter((t) => t.id !== id) })),
   reset: () =>
     set({
       appStatus: "IDLE",
@@ -62,5 +76,6 @@ export const useStore = create<AppState>((set) => ({
       spatial: [],
       logs: [],
       context: null,
+      toasts: [],
     }),
 }));

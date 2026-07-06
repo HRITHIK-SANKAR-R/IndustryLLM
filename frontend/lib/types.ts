@@ -60,3 +60,9 @@ export interface Health {
 }
 
 export type AppStatus = "IDLE" | "PROCESSING" | "READY" | "ERROR";
+
+export interface Toast {
+  id: string;
+  kind: "success" | "error";
+  message: string;
+}

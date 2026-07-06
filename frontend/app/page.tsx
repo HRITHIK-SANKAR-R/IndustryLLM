@@ -6,6 +6,7 @@ import { IngestPanel } from "@/components/IngestPanel";
 import { SchematicViewer } from "@/components/SchematicViewer";
 import { GraphEngine } from "@/components/GraphEngine";
 import { ContextDrawer } from "@/components/ContextDrawer";
+import { Toasts } from "@/components/Toasts";
 import { useOmniGraph } from "@/lib/useOmniGraph";
 
 export default function Home() {
@@ -34,6 +35,8 @@ export default function Home() {
           <ContextDrawer />
         </main>
       </div>
+
+      <Toasts />
     </div>
   );
 }

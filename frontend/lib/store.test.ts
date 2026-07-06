@@ -38,3 +38,27 @@ describe("store", () => {
     expect(useStore.getState().graph.nodes).toHaveLength(0);
   });
 });
+
+describe("toasts", () => {
+  beforeEach(() => useStore.getState().reset());
+
+  it("pushToast appends a toast with a unique id", () => {
+    useStore.getState().pushToast("success", "Ontology generated");
+    useStore.getState().pushToast("error", "Ingestion failed");
+    const { toasts } = useStore.getState();
+    expect(toasts).toHaveLength(2);
+    expect(toasts[0]).toMatchObject({ kind: "success", message: "Ontology generated" });
+    expect(toasts[1]).toMatchObject({ kind: "error", message: "Ingestion failed" });
+    expect(toasts[0].id).not.toBe(toasts[1].id);
+  });
+
+  it("dismissToast removes only the matching toast", () => {
+    useStore.getState().pushToast("success", "first");
+    useStore.getState().pushToast("success", "second");
+    const [first, second] = useStore.getState().toasts;
+    useStore.getState().dismissToast(first.id);
+    const remaining = useStore.getState().toasts;
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].id).toBe(second.id);
+  });
+});

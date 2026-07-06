@@ -70,6 +70,14 @@ body {
 }
 .toast-up { animation: toast-up 0.3s ease-out; }
 
+/* Flex-centered variant of toast-up, for containers that already center
+   their children (no translateX(-50%) needed). */
+@keyframes toast-rise {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.toast-rise { animation: toast-rise 0.25s ease-out; }
+
 @keyframes skeleton {
   0% { background-position: -200px 0; }
   100% { background-position: calc(200px + 100%) 0; }
