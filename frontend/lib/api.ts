@@ -1,4 +1,4 @@
-import type { Graph, Health, LogLine, NodeContext } from "./types";
+import type { Graph, Health, LogLine, NodeContext, SpatialHit } from "./types";
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8080";
@@ -15,6 +15,11 @@ export function fetchHealth(): Promise<Health> {
 
 export function fetchGraph(): Promise<Graph> {
   return getJSON<Graph>("/api/v1/graph");
+}
+
+export async function fetchSpatial(): Promise<SpatialHit[]> {
+  const data = await getJSON<{ spatial: SpatialHit[] }>("/api/v1/spatial");
+  return data.spatial ?? [];
 }
 
 export function fetchContext(tag: string): Promise<NodeContext> {
