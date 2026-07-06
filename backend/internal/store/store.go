@@ -138,6 +138,18 @@ func (s *Store) Graph() models.Graph {
 	return models.Graph{Nodes: nodes, Links: links}
 }
 
+// Spatial returns every mapped bounding box (for the 2D schematic overlay).
+func (s *Store) Spatial() []models.SpatialHit {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]models.SpatialHit, 0, len(s.spatial))
+	for _, sp := range s.spatial {
+		out = append(out, sp)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].EquipmentTag < out[j].EquipmentTag })
+	return out
+}
+
 // Context builds the drawer payload for a single equipment tag.
 func (s *Store) Context(tag string) (models.NodeContext, bool) {
 	s.mu.RLock()

@@ -36,6 +36,7 @@ func (rt *Router) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/health", rt.health)
 	mux.HandleFunc("POST /api/v1/ingest", rt.ingest)
 	mux.HandleFunc("GET /api/v1/graph", rt.graph)
+	mux.HandleFunc("GET /api/v1/spatial", rt.spatial)
 	mux.HandleFunc("GET /api/v1/node/{tag}/context", rt.nodeContext)
 	mux.HandleFunc("GET /api/v1/logs", rt.logsHandler)
 	return cors(mux)
@@ -93,6 +94,10 @@ func (rt *Router) ingest(w http.ResponseWriter, r *http.Request) {
 
 func (rt *Router) graph(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, rt.Store.Graph())
+}
+
+func (rt *Router) spatial(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"spatial": rt.Store.Spatial()})
 }
 
 func (rt *Router) nodeContext(w http.ResponseWriter, r *http.Request) {
