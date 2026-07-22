@@ -163,6 +163,8 @@ func (s *Store) Context(tag string) (models.NodeContext, bool) {
 		EquipmentTag: e.EquipmentTag,
 		Name:         e.Name,
 		System:       e.System,
+		Rules:        []models.DrawerRule{},
+		Linked:       []string{},
 	}
 	if sp, ok := s.spatial[tag]; ok {
 		b := sp.Box

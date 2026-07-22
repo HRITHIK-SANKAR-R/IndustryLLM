@@ -75,11 +75,11 @@ export default function IntelligenceDrawer() {
                     <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[var(--secondary)]">
                       <AlertTriangle className="h-4 w-4" /> Associated Rules
                     </div>
-                    {context.associated_rules.length === 0 ? (
+                    {(context.associated_rules ?? []).length === 0 ? (
                       <p className="text-xs text-[var(--muted)]">No rules linked.</p>
                     ) : (
                       <div className="space-y-3">
-                        {context.associated_rules.map((r, i) => (
+                        {(context.associated_rules ?? []).map((r, i) => (
                           <div
                             key={i}
                             className="rounded-md border p-3"
@@ -108,13 +108,13 @@ export default function IntelligenceDrawer() {
                     )}
                   </motion.div>
 
-                  {context.linked_assets.length > 0 && (
+                  {(context.linked_assets ?? []).length > 0 && (
                     <motion.div variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }}>
                       <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[var(--primary)]">
                         <LinkIcon className="h-4 w-4" /> Linked Assets
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {context.linked_assets.map((tag) => (
+                        {(context.linked_assets ?? []).map((tag) => (
                           <button
                             key={tag}
                             onClick={() => setActiveNode(tag)}
