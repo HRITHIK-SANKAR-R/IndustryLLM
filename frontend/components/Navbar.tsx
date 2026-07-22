@@ -1,86 +1,72 @@
 "use client";
 
-import { useStore } from "@/lib/store";
+import { useTheme } from "next-themes";
+import { Moon, Sun, MonitorSmartphone, Search, CheckCircle2 } from "lucide-react";
+import { useAppStore } from "@/store/useAppStore";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 
-export function Navbar() {
-  const appStatus = useStore((s) => s.appStatus);
-  const workerOnline = useStore((s) => s.workerOnline);
-  const mockMode = useStore((s) => s.mockMode);
-  const toggleMock = useStore((s) => s.toggleMock);
-  const graph = useStore((s) => s.graph);
+export default function Navbar() {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const { isMockModeActive, toggleMockMode } = useAppStore();
 
-  const online = appStatus !== "ERROR";
-  const dotColor = appStatus === "ERROR" ? "bg-danger" : "bg-success";
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
-    <header className="h-16 shrink-0 border-b border-border bg-surface flex items-center px-5 gap-6">
-      {/* Logo + status */}
-      <div className="flex items-center gap-3">
-        <span className="font-mono text-lg font-semibold tracking-tight text-accent">
-          OMNI<span className="text-text">-GRAPH</span>
-        </span>
-        <span className="flex items-center gap-1.5 text-xs text-muted">
-          <span className={`h-2 w-2 rounded-full ${dotColor} pulse-dot`} />
-          {online ? "System Online" : "System Error"}
-        </span>
+    <nav className="sticky top-0 z-50 flex h-16 w-full items-center justify-between border-b border-[var(--border)] bg-[var(--bg)] px-6">
+      {/* Left */}
+      <div className="flex items-center gap-4">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded-sm bg-[var(--primary)] shadow-[0_0_10px_var(--primary)]" />
+          <span className="text-lg font-bold tracking-widest text-[var(--text)]">OMNI-GRAPH</span>
+        </Link>
+        <div className="flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-xs text-[var(--muted)]">
+          <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_theme(colors.emerald.500)]" />
+          System Online
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="flex-1 max-w-md">
-        <SearchBox />
+      {/* Center - Search */}
+      <div className="hidden flex-1 justify-center md:flex">
+        <div className="relative w-full max-w-md">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+            <Search className="h-4 w-4 text-[var(--muted)]" />
+          </div>
+          <input
+            type="text"
+            className="block w-full rounded-md border border-[var(--border)] bg-[var(--surface)] p-2 pl-10 text-sm text-[var(--text)] placeholder-[var(--muted)] focus:border-[var(--primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+            placeholder="Search equipment, tags, or rules..."
+          />
+        </div>
       </div>
 
-      {/* Metrics + mock toggle */}
-      <div className="ml-auto flex items-center gap-4 text-xs font-mono text-muted">
-        <span>
-          Nodes <span className="text-text">{graph.nodes.length}</span>
-        </span>
-        <span>
-          Edges <span className="text-text">{graph.links.length}</span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          Worker{" "}
-          <span className={workerOnline ? "text-success" : "text-muted"}>
-            {workerOnline ? "up" : "off"}
-          </span>
-        </span>
+      {/* Right */}
+      <div className="flex items-center gap-4">
         <button
-          onClick={toggleMock}
-          className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
-            mockMode
-              ? "border-warning/50 bg-warning/10 text-warning"
-              : "border-border text-muted hover:text-text"
+          onClick={toggleMockMode}
+          className={`flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors ${
+            isMockModeActive
+              ? "border-[var(--secondary)] text-[var(--secondary)] shadow-[0_0_10px_var(--secondary)]"
+              : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--text)] hover:text-[var(--text)]"
           }`}
-          title="Toggle Edge-Compute (Mock) Mode"
         >
-          Mock {mockMode ? "ON" : "OFF"}
+          <MonitorSmartphone className="h-4 w-4" />
+          <span className="hidden sm:inline">Mock Mode</span>
+          {isMockModeActive && <CheckCircle2 className="h-3 w-3" />}
         </button>
-      </div>
-    </header>
-  );
-}
 
-function SearchBox() {
-  const graph = useStore((s) => s.graph);
-  const setActiveNode = useStore((s) => s.setActiveNode);
-  return (
-    <>
-      <input
-        list="omni-tags"
-        placeholder="Search equipment tag  ·  e.g. V-104"
-        className="w-full bg-bg border border-border rounded-md px-3 py-1.5 text-sm font-mono text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
-        onChange={(e) => {
-          const v = e.target.value.trim();
-          if (graph.nodes.some((n) => n.id === v)) setActiveNode(v);
-        }}
-      />
-      <datalist id="omni-tags">
-        {graph.nodes
-          .filter((n) => n.group === "Equipment")
-          .map((n) => (
-            <option key={n.id} value={n.id} />
-          ))}
-      </datalist>
-    </>
+        {mounted && (
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--border)] text-[var(--muted)] transition-colors hover:border-[var(--text)] hover:text-[var(--text)]"
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+        )}
+      </div>
+    </nav>
   );
 }
