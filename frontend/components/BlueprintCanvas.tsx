@@ -1,19 +1,43 @@
 "use client";
 
-import { useAppStore } from "@/store/useAppStore";
+import { useEffect, useMemo, useState } from "react";
+import { useStore } from "@/lib/store";
 import { ZoomIn, ZoomOut, Maximize, Layers } from "lucide-react";
-import { useState } from "react";
-
-// Mock Data for the Bounding Boxes
-const MOCK_BOUNDING_BOXES = [
-  { id: "V-104", x: 20, y: 30, w: 15, h: 10, label: "Valve V-104" },
-  { id: "P-201A", x: 60, y: 50, w: 20, h: 15, label: "Pump P-201A" },
-  { id: "C-1", x: 30, y: 70, w: 25, h: 20, label: "Chiller C-1" },
-];
 
 export default function BlueprintCanvas() {
-  const { activeNodeId, setActiveNodeId, hoveredNodeId, setHoveredNodeId } = useAppStore();
+  const spatial = useStore((s) => s.spatial);
+  const schematic = useStore((s) => s.schematic);
+  const activeNodeId = useStore((s) => s.activeNodeId);
+  const setActiveNode = useStore((s) => s.setActiveNode);
   const [showOverlays, setShowOverlays] = useState(true);
+  const [hover, setHover] = useState<string | null>(null);
+  const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
+
+  const objectUrl = useMemo(() => (schematic ? URL.createObjectURL(schematic) : null), [schematic]);
+  useEffect(() => {
+    if (!objectUrl) return;
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [objectUrl]);
+
+  useEffect(() => {
+    if (!objectUrl) return;
+    const probe = new window.Image();
+    probe.onload = () => setImgSize({ w: probe.naturalWidth, h: probe.naturalHeight });
+    probe.src = objectUrl;
+  }, [objectUrl]);
+
+  // Virtual canvas: real image dimensions once loaded, else derived from
+  // the extent of all bounding boxes (with padding), else a sane default.
+  const { w, h } = useMemo(() => {
+    if (imgSize) return imgSize;
+    let maxX = 900;
+    let maxY = 700;
+    for (const s of spatial) {
+      maxX = Math.max(maxX, s.bounding_box.x_max + 80);
+      maxY = Math.max(maxY, s.bounding_box.y_max + 80);
+    }
+    return { w: maxX, h: maxY };
+  }, [imgSize, spatial]);
 
   return (
     <div className="relative h-full w-full bg-[var(--surface)] p-4 flex flex-col">
@@ -29,9 +53,9 @@ export default function BlueprintCanvas() {
           <Maximize className="h-4 w-4" />
         </button>
         <div className="my-1 border-t border-[var(--border)]" />
-        <button 
+        <button
           onClick={() => setShowOverlays(!showOverlays)}
-          className={`rounded p-2 transition-colors ${showOverlays ? 'bg-[var(--primary)] text-black' : 'text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]'}`}
+          className={`rounded p-2 transition-colors ${showOverlays ? "bg-[var(--primary)] text-black" : "text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"}`}
         >
           <Layers className="h-4 w-4" />
         </button>
@@ -39,55 +63,66 @@ export default function BlueprintCanvas() {
 
       {/* Canvas Area */}
       <div className="relative flex-1 overflow-hidden rounded-lg border border-[var(--border)] bg-[#1e1e1e] flex items-center justify-center">
-        {/* Placeholder for the actual Blueprint Image */}
-        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
-        <span className="text-[var(--muted)] font-mono opacity-50">Schematic View</span>
-
-        {/* SVG Overlay Layer */}
-        {showOverlays && (
-          <svg className="absolute inset-0 h-full w-full" style={{ pointerEvents: 'none' }}>
-            {MOCK_BOUNDING_BOXES.map((box) => {
-              const isActive = activeNodeId === box.id;
-              const isHovered = hoveredNodeId === box.id;
-              
-              return (
-                <g 
-                  key={box.id} 
-                  style={{ pointerEvents: 'auto', cursor: 'pointer' }}
-                  onClick={() => setActiveNodeId(box.id)}
-                  onMouseEnter={() => setHoveredNodeId(box.id)}
-                  onMouseLeave={() => setHoveredNodeId(null)}
-                >
-                  <rect
-                    x={`${box.x}%`}
-                    y={`${box.y}%`}
-                    width={`${box.w}%`}
-                    height={`${box.h}%`}
-                    fill={isActive ? 'var(--primary)' : isHovered ? 'var(--primary)' : 'transparent'}
-                    fillOpacity={isActive ? 0.3 : isHovered ? 0.1 : 0}
-                    stroke={isActive || isHovered ? 'var(--primary)' : '#ffffff'}
-                    strokeWidth="2"
-                    strokeDasharray={isActive || isHovered ? "none" : "4 4"}
-                    strokeOpacity={isActive || isHovered ? 1 : 0.4}
-                    className="transition-all duration-200"
-                  />
-                  {/* Label tag */}
-                  <text
-                    x={`${box.x}%`}
-                    y={`${box.y - 2}%`}
-                    fill="var(--text)"
-                    fontSize="12"
-                    fontFamily="monospace"
-                    className={`transition-opacity duration-200 ${isActive || isHovered ? 'opacity-100' : 'opacity-0'}`}
+        {spatial.length === 0 && !schematic ? (
+          <span className="text-[var(--muted)] font-mono opacity-50 text-sm">Awaiting schematic ingestion…</span>
+        ) : (
+          <svg viewBox={`0 0 ${w} ${h}`} className="max-h-full max-w-full" preserveAspectRatio="xMidYMid meet">
+            {objectUrl ? (
+              <image href={objectUrl} width={w} height={h} preserveAspectRatio="none" />
+            ) : (
+              <SyntheticBackground w={w} h={h} />
+            )}
+            {showOverlays &&
+              spatial.map((s) => {
+                const b = s.bounding_box;
+                const active = activeNodeId === s.equipment_tag;
+                const isHover = hover === s.equipment_tag;
+                const stroke = active ? "var(--secondary)" : isHover ? "var(--primary)" : "#ffffff";
+                return (
+                  <g
+                    key={s.equipment_tag}
+                    onClick={() => setActiveNode(s.equipment_tag)}
+                    onMouseEnter={() => setHover(s.equipment_tag)}
+                    onMouseLeave={() => setHover(null)}
+                    style={{ cursor: "pointer" }}
                   >
-                    {box.label}
-                  </text>
-                </g>
-              );
-            })}
+                    <rect
+                      x={b.x_min}
+                      y={b.y_min}
+                      width={b.x_max - b.x_min}
+                      height={b.y_max - b.y_min}
+                      fill={active ? "rgba(234,179,8,0.25)" : isHover ? "rgba(6,182,212,0.2)" : "rgba(255,255,255,0.03)"}
+                      stroke={stroke}
+                      strokeWidth={active || isHover ? 3 : 1.5}
+                      strokeDasharray={active || isHover ? "0" : "6 4"}
+                      rx={4}
+                      className="transition-all duration-200"
+                    />
+                    <text x={b.x_min} y={b.y_min - 6} fontSize={16} fontFamily="monospace" fill={stroke}>
+                      {s.equipment_tag}
+                    </text>
+                  </g>
+                );
+              })}
           </svg>
         )}
       </div>
     </div>
+  );
+}
+
+function SyntheticBackground({ w, h }: { w: number; h: number }) {
+  return (
+    <>
+      <rect x={0} y={0} width={w} height={h} fill="#0d1220" />
+      <defs>
+        <pattern id="bp-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1f2937" strokeWidth="1" />
+        </pattern>
+      </defs>
+      <rect x={0} y={0} width={w} height={h} fill="url(#bp-grid)" />
+      <line x1={0} y1={h * 0.4} x2={w} y2={h * 0.4} stroke="#233044" strokeWidth="4" />
+      <line x1={w * 0.55} y1={0} x2={w * 0.55} y2={h} stroke="#233044" strokeWidth="4" />
+    </>
   );
 }

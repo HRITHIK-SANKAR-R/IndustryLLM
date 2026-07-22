@@ -3,6 +3,8 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import Navbar from "@/components/Navbar";
+import { MockBanner } from "@/components/MockBanner";
+import { Toasts } from "@/components/Toasts";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -32,9 +34,11 @@ export default function RootLayout({
       <body className="h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
           <Navbar />
+          <MockBanner />
           <main className="flex-1 overflow-hidden relative">
             {children}
           </main>
+          <Toasts />
         </ThemeProvider>
       </body>
     </html>

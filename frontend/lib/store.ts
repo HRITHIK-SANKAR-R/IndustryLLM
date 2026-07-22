@@ -20,6 +20,8 @@ interface AppState {
   mockMode: boolean;
   workerOnline: boolean;
   toasts: Toast[];
+  manual: File | null;
+  schematic: File | null;
 
   setStatus: (s: AppStatus) => void;
   // Coordinate nodes arrive as "C-<tag>"; normalize to the equipment tag.
@@ -32,6 +34,8 @@ interface AppState {
   setWorkerOnline: (b: boolean) => void;
   pushToast: (kind: Toast["kind"], message: string) => void;
   dismissToast: (id: string) => void;
+  setManual: (f: File | null) => void;
+  setSchematic: (f: File | null) => void;
   reset: () => void;
 }
 
@@ -50,6 +54,8 @@ export const useStore = create<AppState>((set) => ({
   mockMode: true, // demo-safe default
   workerOnline: false,
   toasts: [],
+  manual: null,
+  schematic: null,
 
   setStatus: (s) => set({ appStatus: s }),
   setActiveNode: (id) => set({ activeNodeId: normalizeTag(id) }),
@@ -68,6 +74,8 @@ export const useStore = create<AppState>((set) => ({
     })),
   dismissToast: (id) =>
     set((st) => ({ toasts: st.toasts.filter((t) => t.id !== id) })),
+  setManual: (f) => set({ manual: f }),
+  setSchematic: (f) => set({ schematic: f }),
   reset: () =>
     set({
       appStatus: "IDLE",
@@ -77,5 +85,7 @@ export const useStore = create<AppState>((set) => ({
       logs: [],
       context: null,
       toasts: [],
+      manual: null,
+      schematic: null,
     }),
 }));

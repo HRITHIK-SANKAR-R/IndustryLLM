@@ -2,16 +2,23 @@
 
 import { useTheme } from "next-themes";
 import { Moon, Sun, MonitorSmartphone, Search, CheckCircle2 } from "lucide-react";
-import { useAppStore } from "@/store/useAppStore";
+import { useStore } from "@/lib/store";
+import { useOmniGraph } from "@/lib/useOmniGraph";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
 export default function Navbar() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const { isMockModeActive, toggleMockMode } = useAppStore();
+  useOmniGraph(); // runs the health check as soon as the app shell mounts
+  const isMockModeActive = useStore((s) => s.mockMode);
+  const workerOnline = useStore((s) => s.workerOnline);
+  const toggleMockMode = useStore((s) => s.toggleMock);
 
   useEffect(() => {
+    // Deferring to a post-hydration render is the documented next-themes
+    // pattern for avoiding a server/client theme mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -24,8 +31,10 @@ export default function Navbar() {
           <span className="text-lg font-bold tracking-widest text-[var(--text)]">OMNI-GRAPH</span>
         </Link>
         <div className="flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-xs text-[var(--muted)]">
-          <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_theme(colors.emerald.500)]" />
-          System Online
+          <div
+            className={`h-2 w-2 rounded-full ${workerOnline ? "bg-emerald-500 shadow-[0_0_8px_theme(colors.emerald.500)]" : "bg-red-500"}`}
+          />
+          {workerOnline ? "System Online" : "Worker Offline"}
         </div>
       </div>
 
