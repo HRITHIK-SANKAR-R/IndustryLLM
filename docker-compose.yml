@@ -10,12 +10,14 @@ services:
       - neo4j_data:/data
 
   worker:
-    build: ./worker
+    build:
+      context: ./worker
     ports:
       - "8000:8000"
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
     ports:
       - "8080:8080"
     environment:
